@@ -1,38 +1,34 @@
-import json
-from http.server import BaseHTTPRequestHandler
-import urllib.parse
+from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
+import csv
 
-# Load student data from the JSON file
-def load_data():
-    with open('q-vercel-python.json', 'r') as file:
-        data = json.load(file)
-    return data
+app = FastAPI()
 
-# Handler class to process incoming requests
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        # Parse the query parameters
-        query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+# Enable CORS for all origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-        # Get 'name' parameters from the query string
-        names = query.get('name', [])
+# Load student marks from CSV
+STUDENT_DATA_FILE = "q-vercel-python.json"
 
-        # Load data from the JSON file
-        data = load_data()
+def load_marks():
+    marks_dict = {}
+    with open(STUDENT_DATA_FILE, newline="", encoding="utf-8") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            marks_dict[row["name"]] = int(row["marks"])
+    return marks_dict
 
-        # Prepare the result dictionary
-        result = {"marks": []}
-        for name in names:
-            # Find the marks for each name
-            for entry in data:
-                if entry["name"] == name:
-                    result["marks"].append(entry["marks"])
+marks_data = load_marks()
 
-        # Send the response header
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')  # Enable CORS for any origin
-        self.end_headers()
-
-        # Send the JSON response
-        self.wfile.write(json.dumps(result).encode('utf-8'))
+@app.get("/api")
+def get_marks(name: list[str] = Query(...)):
+    """
+    Fetch marks for the requested student names.
+    """
+    result = [marks_data.get(n, None) for n in name]  # Preserve order
+    return {"marks": result}
