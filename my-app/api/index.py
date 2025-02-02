@@ -1,34 +1,27 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-import csv
+import json
 
 app = FastAPI()
 
-# Enable CORS for all origins
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["*"],
+    allow_credentials=True,
+    allow_methods=["GET"],
     allow_headers=["*"],
 )
 
-# Load student marks from CSV
-STUDENT_DATA_FILE = "q-vercel-python.json"
+# Load marks data
+with open("q-vercel-python.json", "r") as file:  
+    marks_list = json.load(file)
+    # print(marks_list)
 
-def load_marks():
-    marks_dict = {}
-    with open(STUDENT_DATA_FILE, newline="", encoding="utf-8") as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            marks_dict[row["name"]] = int(row["marks"])
-    return marks_dict
-
-marks_data = load_marks()
+# Convert list to a dictionary for fast lookup
+marks_data = {entry["name"]: entry["marks"] for entry in marks_list}
 
 @app.get("/api")
-def get_marks(name: list[str] = Query(...)):
-    """
-    Fetch marks for the requested student names.
-    """
-    result = [marks_data.get(n, None) for n in name]  # Preserve order
+def get_marks(name: list[str] = Query([])):
+    result = [marks_data.get(n, None) for n in name]
     return {"marks": result}
